@@ -28,25 +28,25 @@ We have also added in an explicit connection from POS to Chunk, which actually m
 If you want to train each task separately and compare the results you just need to change an argument in the ``run_all.sh`` script.
 
 ### POS Single
-{% highlight bash %}
+```bash
 python3 run_model.py --model_type "POS" \
        	             --dataset_path "./data" \
 		                 --save_path "./data/outputs/"
 
-{% endhighlight%}
+```
 
 ### Chunk Single
-{% highlight bash %}
+```bash
 python3 run_model.py --model_type "CHUNK" \
        	             --dataset_path "./data" \
 		                 --save_path "./data/outputs/"
 
-{% endhighlight%}
+```
 
 ### Joint
-{% highlight bash %}
+```bash
 python3 run_model.py --model_type "JOINT" \
        	             --dataset_path "./data" \
 		                 --save_path "./data/outputs/"
 
-{% endhighlight%}
+```
