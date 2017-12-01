@@ -195,7 +195,7 @@ class Shared_Model(object):
 
     def _build_graph(self, config, is_training):
         word_embedding = tf.get_variable("word_embedding", [config.vocab_size, config.word_embedding_size])
-        inputs = tf.nn.embedding_lookup(word_embedding, config.input_data)
+        inputs = tf.nn.embedding_lookup(word_embedding, self.input_data)
         pos_embedding = tf.get_variable("pos_embedding", [config.num_pos_tags, config.pos_embedding_size])
 
         if is_training and config.keep_prob < 1:
