@@ -1,4 +1,3 @@
-
 """Utilities for parsing CONll text files."""
 from __future__ import absolute_import
 from __future__ import division
@@ -14,21 +13,6 @@ import pdb
 import pickle
 
 import numpy as np
-#from six.moves import xrange  # pylint: disable=redefined-builtin
-
-"""
-==========
-Section 1.
-==========
-
-This section defines the methods that:
-    (1). Read in the words, add padding, and assign each an integer
-    (2). Read in the tagss, add padding, and assign each a category of the form
-    [0,...,1,...0] etc.
-
-Section 2 will deal with creating the window and mini-batching
-
-"""
 
 """
     1.0. Utility Methods
@@ -174,31 +158,20 @@ def raw_x_y_data(data_path, num_steps):
         pos_data_c, chunk_data_c
 
 
-"""
-============
-Section 2.
-============
-
-Here we want to feed in the raw data, batch-size, and window size
- and get back mini batches. These will be of size [batch_size, num_steps]
-
-Args:
-raw_words = the raw array of the word integers
-raw_tag = the raw array of the tag integers
-batch_size = batch size
-num_steps = the number of steps you are going to look back in your rnn
-tag_vocab_size = the size of the the number of tag tokens (
-    needed for transfer into the [0,...,1,...,0] format)
-
-Yields
-(x,y) - x the batch, y the tag tags
-
-"""
-
-
 def create_batches(raw_words, raw_pos, raw_chunk, batch_size, num_steps, pos_vocab_size,
                    chunk_vocab_size):
-    """Create those minibatches."""
+    """Tokenize and create batches From words (inputs), raw_pos (output 1), raw_chunk(output 2). The parameters
+    of the minibatch are defined by the batch_size, the length of the sequence.
+
+    :param raw_words:
+    :param raw_pos:
+    :param raw_chunk:
+    :param batch_size:
+    :param num_steps:
+    :param pos_vocab_size:
+    :param chunk_vocab_size:
+    :return:
+    """
 
     def _reshape_and_pad(tokens, batch_size, num_steps):
         tokens = np.array(tokens, dtype=np.int32)
@@ -249,7 +222,7 @@ def _int_to_string(int_pred, d):
     return keys
 
 
-def _res_to_list(res, batch_size, num_steps, to_id, w_length):
+def res_to_list(res, batch_size, num_steps, to_id, w_length):
 
     tmp = np.concatenate([x.reshape(batch_size, num_steps)
                           for x in res], axis=1).reshape(-1)

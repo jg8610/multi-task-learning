@@ -9,8 +9,8 @@ from tensorflow.models.rnn import rnn
 
 import pdb
 
-class Shared_Model(object):
 
+class Shared_Model(object):
     def __init__(self, config, is_training):
         """Initialisation
             basically set the self-variables up, so that we can call them
@@ -32,10 +32,10 @@ class Shared_Model(object):
         self.argmax = config.argmax
 
         # add input size - size of pos tags
-        self.pos_targets = tf.placeholder(tf.float32, [(batch_size*num_steps),
-                                          num_pos_tags])
-        self.chunk_targets = tf.placeholder(tf.float32, [(batch_size*num_steps),
-                                            num_chunk_tags])
+        self.pos_targets = tf.placeholder(tf.float32, [(batch_size * num_steps),
+                                                       num_pos_tags])
+        self.chunk_targets = tf.placeholder(tf.float32, [(batch_size * num_steps),
+                                                         num_chunk_tags])
 
         def _shared_layer(input_data, config):
             """Build the model to decoding
@@ -120,7 +120,7 @@ class Shared_Model(object):
             # concatenate the encoder_units and the pos_prediction
 
             pos_prediction = tf.reshape(pos_prediction,
-                [batch_size, num_steps, pos_embedding_size])
+                                        [batch_size, num_steps, pos_embedding_size])
             chunk_inputs = tf.concat(2, [pos_prediction, encoder_units])
 
             with tf.variable_scope("chunk_decoder"):
@@ -167,7 +167,7 @@ class Shared_Model(object):
             (_, int_targets) = tf.nn.top_k(labels, 1)
             (_, int_predictions) = tf.nn.top_k(logits, 1)
             num_true = tf.reduce_sum(tf.cast(tf.equal(int_targets, int_predictions), tf.float32))
-            accuracy = num_true / (num_steps*batch_size)
+            accuracy = num_true / (num_steps * batch_size)
             return loss, accuracy, int_predictions, int_targets
 
         def _training(loss, config, m):
@@ -196,7 +196,6 @@ class Shared_Model(object):
             train_op = optimizer.apply_gradients(zip(grads, tvars))
             return train_op
 
-
         word_embedding = tf.get_variable("word_embedding", [vocab_size, word_embedding_size])
         inputs = tf.nn.embedding_lookup(word_embedding, self.input_data)
         pos_embedding = tf.get_variable("pos_embedding", [num_pos_tags, pos_embedding_size])
@@ -218,11 +217,10 @@ class Shared_Model(object):
         self.pos_int_targ = pos_int_targ
 
         # choose either argmax or dot product for pos
-        if config.argmax==1:
-            pos_to_chunk_embed = tf.nn.embedding_lookup(pos_embedding,pos_int_pred)
+        if config.argmax == 1:
+            pos_to_chunk_embed = tf.nn.embedding_lookup(pos_embedding, pos_int_pred)
         else:
-            pos_to_chunk_embed = tf.matmul(tf.nn.softmax(pos_logits),pos_embedding)
-
+            pos_to_chunk_embed = tf.matmul(tf.nn.softmax(pos_logits), pos_embedding)
 
         chunk_logits, chunk_states = _chunk_private(encoding, pos_to_chunk_embed, config)
         chunk_loss, chunk_accuracy, chunk_int_pred, chunk_int_targ = _loss(chunk_logits, self.chunk_targets)

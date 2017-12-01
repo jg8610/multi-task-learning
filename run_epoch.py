@@ -37,7 +37,7 @@ def run_epoch(session, m, words, pos, chunk, pos_vocab_size, chunk_vocab_size,
     state = m.initial_state.eval()
 
     for step, (x, y_pos, y_chunk) in enumerate(reader.create_batches(words, pos, chunk, m.batch_size,
-                                               m.num_steps, pos_vocab_size, chunk_vocab_size)):
+                                                                     m.num_steps, pos_vocab_size, chunk_vocab_size)):
 
         if model_type == 'POS':
             if valid:
@@ -56,7 +56,7 @@ def run_epoch(session, m, words, pos, chunk, pos_vocab_size, chunk_vocab_size,
                 eval_op = m.joint_op
 
         joint_loss, _, pos_int_pred, chunk_int_pred, pos_int_true, \
-            chunk_int_true, pos_loss, chunk_loss = \
+        chunk_int_true, pos_loss, chunk_loss = \
             session.run([m.joint_loss, eval_op, m.pos_int_pred,
                          m.chunk_int_pred, m.pos_int_targ, m.chunk_int_targ,
                          m.pos_loss, m.chunk_loss],
@@ -89,4 +89,4 @@ def run_epoch(session, m, words, pos, chunk, pos_vocab_size, chunk_vocab_size,
         chunk_true.append(chunk_int_true)
 
     return (comb_loss / iters), pos_predictions, chunk_predictions, pos_true, \
-        chunk_true, (pos_total_loss / iters), (chunk_total_loss / iters)
+           chunk_true, (pos_total_loss / iters), (chunk_total_loss / iters)
