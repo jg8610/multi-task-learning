@@ -11,11 +11,8 @@ import pdb
 
 
 class Shared_Model(object):
+    """Tensorflow Graph"""
     def __init__(self, config, is_training):
-        """Initialisation
-            basically set the self-variables up, so that we can call them
-            as variables to the model.
-        """
         self.max_grad_norm = config.max_grad_norm
         self.num_steps = num_steps = config.num_steps
         self.encoder_size = config.encoder_size
