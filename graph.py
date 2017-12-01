@@ -45,24 +45,18 @@ class Shared_Model(object):
         Returns:
             output units
         """
-        cell = rnn.BasicLSTMCell(config.encoder_size)
 
-        inputs = [tf.squeeze(input_, [1])
-                  for input_ in tf.split(1, config.num_steps, input_data)]
+        with tf.variable_scope('encoder'):
+            lstm_cell = rnn.BasicLSTMCell(config.encoder_size, reuse=tf.get_variable_scope().reuse, forget_bias=1.0)
+            if is_training and config.keep_prob < 1:
+                lstm_cell = rnn.DropoutWrapper(
+                    lstm_cell, output_keep_prob=config.keep_prob)
+            encoder_outputs, encoder_states = tf.nn.dynamic_rnn(lstm_cell,
+                                                                input_data,
+                                                                dtype=tf.float32,
+                                                                scope="encoder_rnn")
 
-        if is_training and config.keep_prob < 1:
-            cell = rnn.DropoutWrapper(
-                cell, output_keep_prob=config.keep_prob)
-
-        cell = rnn.MultiRNNCell([cell] * config.num_shared_layers)
-
-        initial_state = cell.zero_state(config.batch_size, tf.float32)
-
-        encoder_outputs, encoder_states = rnn.static_rnn(cell, inputs,
-                                                         initial_state=initial_state,
-                                                         scope="encoder_rnn")
-
-        return encoder_outputs, initial_state
+        return encoder_outputs
 
     def _pos_private(self, encoder_units, config, is_training):
         """Decode model for pos
@@ -75,25 +69,21 @@ class Shared_Model(object):
             logits
         """
         with tf.variable_scope("pos_decoder"):
-            cell = rnn.BasicLSTMCell(config.pos_decoder_size,
-                                     forget_bias=1.0)
+            pos_decoder_cell = rnn.BasicLSTMCell(config.pos_decoder_size,
+                                     forget_bias=1.0, reuse=tf.get_variable_scope().reuse)
 
             if is_training and config.keep_prob < 1:
-                cell = rnn.DropoutWrapper(
-                    cell, output_keep_prob=config.keep_prob)
+                pos_decoder_cell = rnn.DropoutWrapper(
+                    pos_decoder_cell, output_keep_prob=config.keep_prob)
 
-            initial_state = cell.zero_state(config.batch_size, tf.float32)
+            encoder_units = tf.transpose(encoder_units, [1, 0, 2])
 
-            # puts it into batch_size X input_size
-            inputs = [tf.squeeze(input_, [1])
-                      for input_ in tf.split(1, config.num_steps,
-                                             encoder_units)]
+            decoder_outputs, decoder_states = tf.nn.dynamic_rnn(pos_decoder_cell,
+                                                                encoder_units,
+                                                                dtype=tf.float32,
+                                                                scope="pos_rnn")
 
-            decoder_outputs, decoder_states = rnn.static_rnn(cell, inputs,
-                                                             initial_state=initial_state,
-                                                             scope="pos_rnn")
-
-            output = tf.reshape(tf.concat(1, decoder_outputs),
+            output = tf.reshape(tf.concat(decoder_outputs, 1),
                                 [-1, config.pos_decoder_size])
 
             softmax_w = tf.get_variable("softmax_w",
@@ -120,27 +110,22 @@ class Shared_Model(object):
 
         pos_prediction = tf.reshape(pos_prediction,
                                     [self.batch_size, self.num_steps, self.pos_embedding_size])
-        chunk_inputs = tf.concat(2, [pos_prediction, encoder_units])
+        encoder_units = tf.transpose(encoder_units, [1, 0, 2])
+        chunk_inputs = tf.concat([pos_prediction, encoder_units], 2)
 
         with tf.variable_scope("chunk_decoder"):
-            cell = rnn.BasicLSTMCell(config.chunk_decoder_size, forget_bias=1.0)
+            cell = rnn.BasicLSTMCell(config.chunk_decoder_size, forget_bias=1.0, reuse=tf.get_variable_scope().reuse)
 
             if is_training and config.keep_prob < 1:
                 cell = rnn.DropoutWrapper(
                     cell, output_keep_prob=config.keep_prob)
 
-            initial_state = cell.zero_state(config.batch_size, tf.float32)
+            decoder_outputs, decoder_states = tf.nn.dynamic_rnn(cell,
+                                                                chunk_inputs,
+                                                                dtype=tf.float32,
+                                                                scope="chunk_rnn")
 
-            # this function puts the 3d tensor into a 2d tensor: batch_size x input size
-            inputs = [tf.squeeze(input_, [1])
-                      for input_ in tf.split(1, config.num_steps,
-                                             chunk_inputs)]
-
-            decoder_outputs, decoder_states = rnn.static_rnn(cell,
-                                                             inputs, initial_state=initial_state,
-                                                             scope="chunk_rnn")
-
-            output = tf.reshape(tf.concat(1, decoder_outputs),
+            output = tf.reshape(tf.concat(decoder_outputs, 1),
                                 [-1, config.chunk_decoder_size])
 
             softmax_w = tf.get_variable("softmax_w",
@@ -159,8 +144,8 @@ class Shared_Model(object):
             returns:
                 loss as tensor of type float
         """
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits,
-                                                                labels,
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
+                                                                labels=labels,
                                                                 name='xentropy')
         loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
         (_, int_targets) = tf.nn.top_k(labels, 1)
@@ -201,10 +186,9 @@ class Shared_Model(object):
         if is_training and config.keep_prob < 1:
             inputs = tf.nn.dropout(inputs, config.keep_prob)
 
-        encoding, intial_state = self._shared_layer(inputs, config, is_training)
-        self.initial_state = intial_state
+        encoding = self._shared_layer(inputs, config, is_training)
 
-        encoding = tf.pack(encoding)
+        encoding = tf.stack(encoding)
         encoding = tf.transpose(encoding, perm=[1, 0, 2])
 
         pos_logits, pos_states = self._pos_private(encoding, config, is_training)
@@ -220,7 +204,7 @@ class Shared_Model(object):
         else:
             pos_to_chunk_embed = tf.matmul(tf.nn.softmax(pos_logits), pos_embedding)
 
-        chunk_logits, chunk_states = self._chunk_private(encoding, pos_to_chunk_embed, config)
+        chunk_logits, chunk_states = self._chunk_private(encoding, pos_to_chunk_embed, config, is_training)
         chunk_loss, chunk_accuracy, chunk_int_pred, chunk_int_targ = self._loss(chunk_logits, self.chunk_targets)
         self.chunk_loss = chunk_loss
 
