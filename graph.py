@@ -11,7 +11,7 @@ import pdb
 
 
 class Shared_Model(object):
-    """Tensorflow Graph"""
+    """Tensorflow Graph For Shared Pos & Chunk Model"""
     def __init__(self, config, is_training):
         self.max_grad_norm = config.max_grad_norm
         self.num_steps = num_steps = config.num_steps
@@ -37,7 +37,7 @@ class Shared_Model(object):
         self._build_graph(config, is_training)
 
     def _shared_layer(self, input_data, config, is_training):
-        """Build the model to decoding
+        """Build the model up until decoding.
 
         Args:
             input_data = size batch_size X num_steps X embedding size
