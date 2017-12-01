@@ -4,14 +4,14 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorflow.models.rnn import rnn_cell
-from tensorflow.models.rnn import rnn
+from tensorflow.contrib import rnn
 
 import pdb
 
 
 class Shared_Model(object):
     """Tensorflow Graph For Shared Pos & Chunk Model"""
+
     def __init__(self, config, is_training):
         self.max_grad_norm = config.max_grad_norm
         self.num_steps = num_steps = config.num_steps
@@ -24,7 +24,7 @@ class Shared_Model(object):
         self.num_chunk_tags = config.num_chunk_tags
         self.input_data = tf.placeholder(tf.int32, [config.batch_size, num_steps])
         self.word_embedding_size = config.word_embedding_size
-        self.pos_embedding_size =config.pos_embedding_size
+        self.pos_embedding_size = config.pos_embedding_size
         self.num_shared_layers = config.num_shared_layers
         self.argmax = config.argmax
 
@@ -45,22 +45,22 @@ class Shared_Model(object):
         Returns:
             output units
         """
-        cell = rnn_cell.BasicLSTMCell(config.encoder_size)
+        cell = rnn.BasicLSTMCell(config.encoder_size)
 
         inputs = [tf.squeeze(input_, [1])
                   for input_ in tf.split(1, config.num_steps, input_data)]
 
         if is_training and config.keep_prob < 1:
-            cell = rnn_cell.DropoutWrapper(
+            cell = rnn.DropoutWrapper(
                 cell, output_keep_prob=config.keep_prob)
 
-        cell = rnn_cell.MultiRNNCell([cell] * config.num_shared_layers)
+        cell = rnn.MultiRNNCell([cell] * config.num_shared_layers)
 
         initial_state = cell.zero_state(config.batch_size, tf.float32)
 
-        encoder_outputs, encoder_states = rnn.rnn(cell, inputs,
-                                                  initial_state=initial_state,
-                                                  scope="encoder_rnn")
+        encoder_outputs, encoder_states = rnn.static_rnn(cell, inputs,
+                                                         initial_state=initial_state,
+                                                         scope="encoder_rnn")
 
         return encoder_outputs, initial_state
 
@@ -75,11 +75,11 @@ class Shared_Model(object):
             logits
         """
         with tf.variable_scope("pos_decoder"):
-            cell = rnn_cell.BasicLSTMCell(config.pos_decoder_size,
-                                          forget_bias=1.0)
+            cell = rnn.BasicLSTMCell(config.pos_decoder_size,
+                                     forget_bias=1.0)
 
             if is_training and config.keep_prob < 1:
-                cell = rnn_cell.DropoutWrapper(
+                cell = rnn.DropoutWrapper(
                     cell, output_keep_prob=config.keep_prob)
 
             initial_state = cell.zero_state(config.batch_size, tf.float32)
@@ -89,9 +89,9 @@ class Shared_Model(object):
                       for input_ in tf.split(1, config.num_steps,
                                              encoder_units)]
 
-            decoder_outputs, decoder_states = rnn.rnn(cell, inputs,
-                                                      initial_state=initial_state,
-                                                      scope="pos_rnn")
+            decoder_outputs, decoder_states = rnn.static_rnn(cell, inputs,
+                                                             initial_state=initial_state,
+                                                             scope="pos_rnn")
 
             output = tf.reshape(tf.concat(1, decoder_outputs),
                                 [-1, config.pos_decoder_size])
@@ -123,10 +123,10 @@ class Shared_Model(object):
         chunk_inputs = tf.concat(2, [pos_prediction, encoder_units])
 
         with tf.variable_scope("chunk_decoder"):
-            cell = rnn_cell.BasicLSTMCell(config.chunk_decoder_size, forget_bias=1.0)
+            cell = rnn.BasicLSTMCell(config.chunk_decoder_size, forget_bias=1.0)
 
             if is_training and config.keep_prob < 1:
-                cell = rnn_cell.DropoutWrapper(
+                cell = rnn.DropoutWrapper(
                     cell, output_keep_prob=config.keep_prob)
 
             initial_state = cell.zero_state(config.batch_size, tf.float32)
@@ -136,9 +136,9 @@ class Shared_Model(object):
                       for input_ in tf.split(1, config.num_steps,
                                              chunk_inputs)]
 
-            decoder_outputs, decoder_states = rnn.rnn(cell,
-                                                      inputs, initial_state=initial_state,
-                                                      scope="chunk_rnn")
+            decoder_outputs, decoder_states = rnn.static_rnn(cell,
+                                                             inputs, initial_state=initial_state,
+                                                             scope="chunk_rnn")
 
             output = tf.reshape(tf.concat(1, decoder_outputs),
                                 [-1, config.chunk_decoder_size])

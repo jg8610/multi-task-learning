@@ -2,22 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import math
 import time
-import random
-
 import tensorflow as tf
-import tensorflow.python.platform
-
-from tensorflow.models.rnn import rnn_cell
-from tensorflow.models.rnn import rnn
-
 import model_reader as reader
 import numpy as np
-import pdb
-from graph import Shared_Model
-
-import saveload
 
 
 def run_epoch(session, m, words, pos, chunk, pos_vocab_size, chunk_vocab_size,
